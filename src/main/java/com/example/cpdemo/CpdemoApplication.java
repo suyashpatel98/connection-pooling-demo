@@ -5,9 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.JDBCType;
 import java.sql.SQLException;
 
 @SpringBootApplication
@@ -42,11 +44,23 @@ public class CpdemoApplication {
 
 	private long testWithoutConnectionPooling() {
 		long startTime = System.currentTimeMillis();
-		try (Connection connection = DriverManager.getConnection(
-				"jdbc:mysql://localhost:3306/?serverTimezone=UTC", "root", "admin")) {
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(
+					"jdbc:mysql://localhost:3306/?serverTimezone=UTC", "root", "admin");
+			SingleConnectionDataSource dataSource = new SingleConnectionDataSource(connection, false);
+			JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 			String result = jdbcTemplate.queryForObject("SELECT 1", String.class);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException e) {
+					System.out.println(e);
+				}
+			}
 		}
 		return System.currentTimeMillis() - startTime;
 	}
